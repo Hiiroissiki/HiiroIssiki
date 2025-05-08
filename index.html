@@ -1,3 +1,35 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+</script>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -28,7 +60,9 @@
     .video {
       position: absolute;
       z-index: 1;
-      opacity: 1;
+      opacity: 0;
+      transition: opacity 0.1s;
+      transform-origin: center;
     }
     .video iframe {
       border: none;
@@ -41,7 +75,7 @@
       z-index: 2;
       color: #666;
       font-size: 1.2em;
-      opacity: 1;
+      opacity: 0;
       pointer-events: none;
     }
     .matrix-text {
@@ -51,8 +85,9 @@
       font-size: 0.9em;
       white-space: nowrap;
       text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
-      pointer-events: none;
+      pointer-events: auto; /* クリック有効化 */
       transition: opacity 0.5s;
+      opacity: 0;
     }
     .releases, .sns-contact {
       position: relative;
@@ -115,7 +150,31 @@
       color: #999;
     }
     @keyframes fadeIn {
+      from { opacity: 0; }
       to { opacity: 1; }
+    }
+    @keyframes noise {
+      0% { opacity: 0; transform: translate(-10px, 10px) scale(0.8); filter: brightness(50%); }
+      20% { opacity: 0.3; transform: translate(5px, -5px) scale(0.9); filter: brightness(70%); }
+      40% { opacity: 0.6; transform: translate(-5px, 5px) scale(0.85); filter: brightness(60%); }
+      60% { opacity: 0.8; transform: translate(3px, -3px) scale(0.95); filter: brightness(80%); }
+      100% { opacity: 1; transform: translate(0, 0) scale(1); filter: brightness(100%); }
+    }
+    @keyframes vanish {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.8); }
+    }
+    .fade-in {
+      animation: fadeIn 1s ease-in forwards;
+      will-change: opacity;
+    }
+    .noise {
+      animation: noise 1.5s ease-out forwards;
+      will-change: opacity, transform, filter;
+    }
+    .vanish {
+      animation: vanish 0.3s ease-out forwards;
+      will-change: opacity, transform;
     }
     @media (max-width: 768px) {
       .video-container {
@@ -158,9 +217,8 @@
     }
   </style>
 </head>
-<body>
+<body onload="initAnimations()">
   <div class="video-container">
-    <!-- 動画：YouTube 9個＋Sounding Garden＋Vimeo、PC：固定配置、スマホ：縦並び -->
     <div class="video" style="top: 10%; left: 5%; width: 300px; height: 168.75px;">
       <iframe src="https://www.youtube.com/embed/qYGZoM73NZ8" allowfullscreen></iframe>
     </div>
@@ -194,9 +252,7 @@
     <div class="video" style="top: 25%; left: 65%; width: 280px; height: 157.5px;">
       <iframe src="https://player.vimeo.com/video/911984780" allowfullscreen></iframe>
     </div>
-    <!-- 文字：Echoes -->
     <span class="poem-en" style="top: 25%; left: 10%;">Echoes</span>
-    <!-- マトリックス風文章：英語＋日本語、100行、生物的動き、Releases上部で消える -->
     <div class="matrix-text" style="top: 2%;" data-wave="0" data-speed="0.1">To transform the structured art of “music” into ambiguous particles...</div>
     <div class="matrix-text" style="top: 4%;" data-wave="5" data-speed="0.15">將「音樂」這種有結構的藝術轉化為記憶與空間的曖昧粒子...</div>
     <div class="matrix-text" style="top: 6%; left: 10%;" data-wave="10" data-speed="0.2">It—is neither “story” nor “emotion”. It is the sensation of fragments...</div>
@@ -234,7 +290,7 @@
     <div class="matrix-text" style="top: 70%; left: 5%;" data-wave="20" data-speed="0.15">Time is not a line but a layer, melody is not will but an accidental...</div>
     <div class="matrix-text" style="top: 72%; left: 15%;" data-wave="25" data-speed="0.2">時間不是線條，而是層次；旋律不是意志，而是偶然的玷污...</div>
     <div class="matrix-text" style="top: 74%;" data-wave="30" data-speed="0.25">I want to scoop up the contemporary “submerged sensation of being flooded...</div>
-    <div class="matrix-text" style="top: 76%;" data-wave="35" data-speed="0.3">我想舀出當代「被聲音淹沒的淹沒感覺...</div>
+    <div class="matrix-text" style="top: 76%;" data-wave="35" data-speed="0.3">我想舐出當代「被聲音淹沒的淹沒感覺...</div>
     <div class="matrix-text" style="top: 78%; left: 25%;" data-wave="40" data-speed="0.1">If painters who painted light emerged in the Impressionist movement...</div>
     <div class="matrix-text" style="top: 80%; left: 35%;" data-wave="45" data-speed="0.15">如果印象派運動中出現了畫光的畫家...</div>
     <div class="matrix-text" style="top: 82%;" data-wave="50" data-speed="0.2">Songs with pauses can be a new form of ambient...</div>
@@ -262,7 +318,7 @@
     <div class="matrix-text" style="top: 26%; left: 45%;" data-wave="10" data-speed="0.3">Time is not a line but a layer, melody is not will but an accidental...</div>
     <div class="matrix-text" style="top: 28%; left: 55%;" data-wave="15" data-speed="0.1">時間不是線條，而是層次；旋律不是意志，而是偶然的玷污...</div>
     <div class="matrix-text" style="top: 30%;" data-wave="20" data-speed="0.15">I want to scoop up the contemporary “submerged sensation of being flooded...</div>
-    <div class="matrix-text" style="top: 32%;" data-wave="25" data-speed="0.2">我想舀出當代「被聲音淹沒的淹沒感覺...</div>
+    <div class="matrix-text" style="top: 32%;" data-wave="25" data-speed="0.2">我想舐出當代「被聲音淹沒的淹沒感覺...</div>
     <div class="matrix-text" style="top: 34%; left: 65%;" data-wave="30" data-speed="0.25">If painters who painted light emerged in the Impressionist movement...</div>
     <div class="matrix-text" style="top: 36%; left: 75%;" data-wave="35" data-speed="0.3">如果印象派運動中出現了畫光的畫家...</div>
     <div class="matrix-text" style="top: 38%;" data-wave="40" data-speed="0.1">Songs with pauses can be a new form of ambient...</div>
@@ -290,7 +346,7 @@
     <div class="matrix-text" style="top: 82%; left: 85%;" data-wave="0" data-speed="0.2">Time is not a line but a layer, melody is not will but an accidental...</div>
     <div class="matrix-text" style="top: 84%; left: 95%;" data-wave="5" data-speed="0.25">時間不是線條，而是層次；旋律不是意志，而是偶然的玷污...</div>
     <div class="matrix-text" style="top: 86%;" data-wave="10" data-speed="0.3">I want to scoop up the contemporary “submerged sensation of being flooded...</div>
-    <div class="matrix-text" style="top: 88%;" data-wave="15" data-speed="0.1">我想舀出當代「被聲音淹沒的淹沒感覺...</div>
+    <div class="matrix-text" style="top: 88%;" data-wave="15" data-speed="0.1">我想舐出當代「被聲音淹沒的淹沒感覺...</div>
     <div class="matrix-text" style="top: 90%; left: 5%;" data-wave="20" data-speed="0.15">If painters who painted light emerged in the Impressionist movement...</div>
     <div class="matrix-text" style="top: 92%; left: 15%;" data-wave="25" data-speed="0.2">如果印象派運動中出現了畫光的畫家...</div>
     <div class="matrix-text" style="top: 94%;" data-wave="30" data-speed="0.25">Songs with pauses can be a new form of ambient...</div>
@@ -328,7 +384,7 @@
     <h2>Contact</h2>
     <div class="sns-links">
       <a href="https://www.instagram.com/hiiroissiki" target="_blank"><i class="fab fa-instagram"></i></a>
-      <a href="https://music.apple.com/jp/artist/hiiro-issiki/1531872098" target="_blank"><i class="fab fa-apple"></i></a>
+      <a href="https://music.apple.com/jp/artist/hiiro-targets="blank"><i class="fab fa-apple"></i></a>
       <a href="https://open.spotify.com/intl-ja/artist/0liySOeMG87MDy1XdjqOLh" target="_blank"><i class="fab fa-spotify"></i></a>
       <a href="https://www.deezer.com/artist/107302752" target="_blank"><i class="fas fa-music"></i></a>
       <a href="https://soundcloud.com/hiiroissiki" target="_blank"><i class="fab fa-soundcloud"></i></a>
@@ -339,41 +395,124 @@
     </div>
   </section>
   <script>
-    const texts = document.querySelectorAll('.matrix-text');
-    const releases = document.querySelector('.releases');
-    const releasesTop = releases.offsetTop - 100; // Releases上部で消える
-    texts.forEach(text => {
-      let x = parseFloat(text.style.left || '0') * window.innerWidth / 100;
-      let y = parseFloat(text.style.top) * window.innerHeight / 100;
-      let wave = parseFloat(text.dataset.wave);
-      let speed = parseFloat(text.dataset.speed);
-      let angle = Math.random() * 2 * Math.PI; // ランダムな初期角度
-      function move() {
-        // 生物のようなランダムな動き
-        angle += (Math.random() - 0.5) * 0.2; // 角度を揺らす
-        x += Math.cos(angle) * speed * 10; // 不規則なx移動
-        y += Math.sin(angle) * speed * 10; // 不規則なy移動
-        // 波形歪み
-        const offset = Math.sin(wave * 0.1) * 15;
-        text.style.transform = `translate(${x}px, ${y + offset}px)`;
-        wave += 0.2;
-        // Releases上部で消える
-        if (y > releasesTop) {
-          text.style.opacity = '0';
-        } else {
-          text.style.opacity = '1';
-        }
-        // 画面外でリセット
-        if (x < -text.offsetWidth || x > window.innerWidth || y < -text.offsetHeight || y > window.innerHeight) {
-          x = Math.random() * window.innerWidth;
-          y = -text.offsetHeight;
-          angle = Math.random() * 2 * Math.PI;
-          text.style.opacity = '1';
-        }
-        requestAnimationFrame(move);
+    function initAnimations() {
+      const videos = document.querySelectorAll('.video');
+      const matrixTexts = document.querySelectorAll('.matrix-text');
+      const poem = document.querySelector('.poem-en');
+
+      // 動画の初期アニメーション、視聴検知、クリックアニメーション
+      videos.forEach(video => {
+        const isFade = Math.random() < 0.5;
+        video.classList.add(isFade ? 'fade-in' : 'noise');
+        video.style.animationDelay = `${Math.random() * 2}s`;
+        video.dataset.isViewing = 'false';
+        video.addEventListener('click', (e) => {
+          if (!video.classList.contains('vanish')) {
+            video.classList.add('vanish');
+            video.addEventListener('animationend', () => {
+              video.classList.remove('vanish');
+              video.style.opacity = '0';
+              video.style.transform = 'none';
+            }, { once: true });
+          }
+        });
+        video.addEventListener('mouseover', () => {
+          video.dataset.isViewing = 'true';
+          video.style.opacity = '1';
+        });
+        video.addEventListener('mouseout', () => {
+          video.dataset.isViewing = 'false';
+        });
+        video.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          video.dataset.isViewing = 'true';
+          video.style.opacity = '1';
+          setTimeout(() => {
+            video.dataset.isViewing = 'false';
+          }, 5000);
+        });
+      });
+
+      // 15秒ごとの動画トグル
+      function toggleVideos() {
+        videos.forEach(video => {
+          if (video.dataset.isViewing === 'false' && !video.classList.contains('vanish')) {
+            video.style.opacity = Math.random() < 0.5 ? '0' : '1';
+          } else {
+            video.style.opacity = '1';
+          }
+        });
       }
-      move();
-    });
+
+      setTimeout(() => {
+        toggleVideos();
+        setInterval(toggleVideos, 15000);
+      }, 3500);
+
+      // 言葉（Echoes）
+      poem.classList.add('noise');
+      poem.style.animationDelay = '0.5s';
+
+      // マトリックス文章
+      const releases = document.querySelector('.releases');
+      const releasesTop = releases.offsetTop - 100;
+      matrixTexts.forEach(text => {
+        const isFade = Math.random() < 0.5;
+        text.classList.add(isFade ? 'fade-in' : 'noise');
+        text.style.animationDelay = `${Math.random() * 2}s`;
+        if (!isFade) {
+          text.addEventListener('animationend', () => {
+            text.style.transform = 'none';
+          }, { once: true });
+        }
+
+        // 2回連続クリック検知
+        let lastClickTime = 0;
+        text.addEventListener('click', () => {
+          const currentTime = Date.now();
+          if (currentTime - lastClickTime < 500) {
+            window.location.href = 'indexsub1.html'; // 2回連続クリックで遷移
+          }
+          lastClickTime = currentTime;
+        });
+
+        // 生物的動き
+        let x = parseFloat(text.style.left || '0') * window.innerWidth / 100;
+        let y = parseFloat(text.style.top) * window.innerHeight / 100;
+        let wave = parseFloat(text.dataset.wave);
+        let speed = parseFloat(text.dataset.speed);
+        let angle = Math.random() * 2 * Math.PI;
+        function move() {
+          angle += (Math.random() - 0.5) * 0.2;
+          x += Math.cos(angle) * speed * 10;
+          y += Math.sin(angle) * speed * 10;
+          const offset = Math.sin(wave * 0.1) * 15;
+          text.style.transform = `translate(${x}px, ${y + offset}px)`;
+          wave += 0.2;
+          if (y > releasesTop) {
+            text.style.opacity = '0';
+          } else {
+            text.style.opacity = '1';
+          }
+          if (x < -text.offsetWidth || x > window.innerWidth || y < -text.offsetHeight || y > window.innerHeight) {
+            x = Math.random() * window.innerWidth;
+            y = -text.offsetHeight;
+            angle = Math.random() * 2 * Math.PI;
+            text.style.opacity = '1';
+          }
+          requestAnimationFrame(move);
+        }
+        if (text.classList.contains('noise')) {
+          text.addEventListener('animationend', () => {
+            move();
+          }, { once: true });
+        } else {
+          move();
+        }
+      });
+    }
   </script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93c5ba615eb4bfd1',t:'MTc0NjY3MzQ0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
